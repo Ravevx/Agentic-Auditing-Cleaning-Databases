@@ -1,6 +1,6 @@
 # Agentic-Auditing-Cleaning-Databases
 
-> A local multi-agent AI system that audits a raw data lake, designs a cleaning plan, reviews it through a committee (agents + human), generates & validates cleaning code, executes it, and produces a final quality report.
+> A multi-agent AI system that audits a raw data lake, designs a cleaning plan, reviews it through a committee (agents + human), generates & validates cleaning code, executes it, and produces a final quality report.
 
 All LLM calls run through **LM Studio** (local). Data is plain files on disk. The pipeline is framework-agnostic and can be implemented in **CrewAI**, **LangGraph**, **LangChain**, or **AutoGen**.
 
@@ -11,9 +11,9 @@ All LLM calls run through **LM Studio** (local). Data is plain files on disk. Th
 - [High-Level Goal](#high-level-goal)
 - [System Architecture](#system-architecture)
 - [Agent Pipeline Flowchart](#agent-pipeline-flowchart)
-- [Agent Descriptions](#agent-descriptions)
 - [Project Folder Structure](#project-folder-structure)
-- [Key Orchestration Properties](#key-orchestration-properties)
+- [Agent Descriptions](#agent-descriptions)
+
 
 ---
 
@@ -136,6 +136,49 @@ The project is organized into **4 layers**:
 ```
 
 ---
+---
+
+## Project Folder Structure
+
+```
+agentic-data-audit/
+datacleaningagent/
+├── audit/
+│   ├── data_explorer_agent.py           # 1️ Explores & audits raw data lake
+│   ├── planner_agent.py                 # 2️ Builds the cleaning plan
+│   ├── reviewer_agent.py                # 3️ Two parallel reviewers score the plan
+│   ├── human_in_the_loop.py             # 4️ Human approve / request-revision gate
+│   ├── coder_agent.py                   # 5️ Writes the cleaning code
+│   ├── code_approver_agent.py           # 6️ Validates the code (loops with coder)
+│   ├── executor_agent.py                # 7️ Executes approved code, writes cleaned data
+│   └── final_evaluator_agent.py         # 8️ Compares before/after, final report
+│
+├── config/                              
+│   └── llm_config.yaml                  (LM Studio endpoint, model, temperature)
+│
+├── data_lake/
+│   ├── data_lake_clean/                 (cleaned versions of each dataset land here)
+│   └── (raw, messy input datasets live here)
+│
+├── outputs/
+│   ├── data_explorer_reports/           (one audit report generated per raw file)
+│   ├── planner_report/                  (the cleaning plan + raw model output)
+│   ├── plan_reviews/                    (review scores/comments from both reviewers)
+│   ├── approval_gate/                   (human approval decision record)
+│   ├── generated_code/                  (generated cleaning script + metadata)
+│   ├── code_review/                     (code approver's verdict + comments)
+│   ├── execution/                       (execution result/log after running the code)
+│   └── final_evaluation/                (before/after metrics + final human-readable report)
+│
+├── shared/
+│   ├── file_utils.py
+│   └── metrics.py                       shared quality-metric functions, used by both Explorer and Evaluator     
+│
+├── .gitignore                           
+├── requirements.txt                     
+├── run_explorer.py
+└── run_pipeline.py
+```
 
 ## Agent Descriptions
 
@@ -296,46 +339,6 @@ The project is organized into **4 layers**:
 
 **Output:** `final_report.md`
 
----
-
-## Project Folder Structure
-
-```
-agentic-data-audit/
-├── config/
-│   └── llm_config.yaml          # LM Studio endpoint, model name, temperature
-│
-├── data_lake/                   # Raw messy input files (CSV, JSON)
-├── data_lake_clean/             # Cleaned output files (written by Code Executor)
-│
-├── spec/
-│   ├── audit_schema.json
-│   ├── plan_schema.json
-│   └── code_review_schema.json
-│
-├── shared/
-│   ├── file_utils.py            # List files, sample rows
-│   └── metrics.py               # Compute quality metrics
-│
-├── crewai_impl/                 # CrewAI implementation
-├── langgraph_impl/              # LangGraph implementation
-├── langchain_impl/              # LangChain implementation
-├── autogen_impl/                # AutoGen implementation
-│
-└── run_pipeline.py              # Entry point: choose framework, run full flow
-```
-
----
-
-## ⚙️ Key Orchestration Properties
-
-| Property | Where it appears |
-|---|---|
-| **Branching & loops** | Coder ↔ Code Approver retry loop |
-| **Parallel agents** | Reviewer 1 and Reviewer 2 run simultaneously |
-| **Human-in-the-loop** | Explicit approval gate before any code is generated |
-| **State passing** | `audit → plan → reviews → approval → code → logs → final report` |
-| **Framework comparison** | Same pipeline logic, 4 different implementations |
 
 ---
 
