@@ -1,0 +1,91 @@
+{
+  "data_lake_path": "J:\\Agent My Learning\\datacleaningagent\\data_lake",
+  "files": [
+    {
+      "name": "customers_legacy.csv",
+      "actions": [
+        {
+          "type": "standardization",
+          "column": "country_code",
+          "reason": "Inconsistent country code formats (US, us, USA)",
+          "benefit": "Ensure consistent parsing and storage of geographical locations"
+        }
+      ]
+    },
+    {
+      "name": "customers_raw.csv",
+      "actions": [
+        {
+          "type": "standardization",
+          "column": "country",
+          "reason": "Variations in country names (e.g., 'US', 'U.S.', 'United States')",
+          "benefit": "Enforce a standard country name format for consistency"
+        },
+        {
+          "type": "validation",
+          "column": "SignupDate",
+          "reason": "Inconsistent date formats (e.g., YYYY-MM-DD, MM/DD/YYYY, DD MMM YYYY)",
+          "benefit": "Ensure consistent parsing and storage of dates"
+        }
+      ]
+    },
+    {
+      "name": "orders_2023.csv",
+      "actions": []
+    },
+    {
+      "name": "orders_2024_messy.csv",
+      "actions": [
+        {
+          "type": "standardization",
+          "column": "OrderDate",
+          "reason": "Inconsistent date formats (YYYY-MM-DD and MM/DD/YYYY)",
+          "benefit": "Ensure consistent sorting and filtering by date"
+        },
+        {
+          "type": "normalization",
+          "column": "Status",
+          "reason": "Inconsistent capitalization",
+          "benefit": "Enable case-sensitive operations (e.g., sorting or filtering)"
+        }
+      ]
+    },
+    {
+      "name": "products.csv",
+      "actions": [
+        {
+          "type": "standardization",
+          "column": "category",
+          "reason": "Inconsistent category names (e.g., 'Electronics', 'Eletronics')",
+          "benefit": "Ensure consistent product classification"
+        },
+        {
+          "type": "normalization",
+          "column": "active",
+          "reason": "Inconsistent 'active' values (e.g., 'yes', '1', 'true', 'no', 'false')",
+          "benefit": "Enable boolean operations and consistency in product status"
+        }
+      ]
+    }
+  ],
+  "cross_file_plan": [
+    {
+      "type": "deduplication",
+      "files_involved": [
+        "customers_legacy.csv",
+        "customers_raw.csv"
+      ],
+      "reason": "Both files contain customer information, which may lead to duplicate records if not properly merged or deduplicated.",
+      "benefit": "Ensure unique customer records and prevent data redundancy"
+    },
+    {
+      "type": "schema-alignment",
+      "files_involved": [
+        "orders_2023.csv",
+        "orders_2024_messy.csv"
+      ],
+      "reason": "Both files contain order information, which may require alignment of column names or formats for consistent analysis.",
+      "benefit": "Enable seamless integration and analysis of orders across both datasets"
+    }
+  ]
+}

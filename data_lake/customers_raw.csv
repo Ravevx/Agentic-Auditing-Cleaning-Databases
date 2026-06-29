@@ -1,0 +1,21 @@
+CustomerID,Name,Country,SignupDate,EmailAddress
+1,John Smith,US,2024-01-05,john.smith@example.com
+2,Maria Garcia,U.S.,01/07/2024,maria.g@example.com
+3,Ali Khan,United States,5 Jan 24,ali.khan@example.com
+4,Anna Müller,Germany,2023-12-30,anna.mueller@example.de
+5,Chen Wei,China,30/12/2023,chen.wei@example.cn
+6,Luis Rossi,Italia,2023-11-15,luis.rossi@example.it
+7,Sarah Johnson,USA,11-16-2023,sarah.j@example.com
+8,Tom Becker,DE,2023/10/01,tom.becker@example.de
+9,Julia Novak,Czech Republic,10-01-23,julia.novak@example.cz
+10,Peter Wong,US,2023-09-12,
+11,Emily Davis,United States,09/13/2023,emily.davis@example.com
+12,Igor Petrov,Russia,2023-08-01,igor.petrov@example.ru
+13,Ahmed Hassan,U.S.,1 Aug 23,ahmed.hassan@example.com
+14,Laura Silva,Brazil,2023-07-20,laura.silva@example.br
+15,Mohammed Al-Farsi,UAE,20-07-2023,m.al-farsi@example.ae
+16,Emma Brown,USA,2023-06-05,emma.brown@example.com
+17,Noah Wilson,United States,06/06/2023,
+18,Liu Yang,China,2023-05-31,liu.yang@example.cn
+19,David Green,US,31-05-23,david.green@example.com
+20,Sofia Lopez,Mexico,2023/05/30,sofia.lopez@example.mx
