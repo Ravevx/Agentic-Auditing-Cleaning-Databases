@@ -1,0 +1,180 @@
+import pandas as pd
+import sys
+import json
+from datetime import datetime
+import os
+
+def standardize_date(date_str):
+    try:
+        return datetime.strptime(date_str, '%Y-%m-%d').strftime('%Y-%m-%d')
+    except ValueError:
+        return None
+
+def normalize_text(text):
+    return text.strip().lower()
+
+def normalize_boolean(value):
+    if isinstance(value, str):
+        value = value.lower()
+    if value in ['yes', 'true', '1', 't']:
+        return True
+    elif value in ['no', 'false', '0', 'f']:
+        return False
+    else:
+        return None
+
+def copy_file(src_path, dst_path):
+    os.makedirs(os.path.dirname(dst_path), exist_ok=True)
+    with open(src_path, 'r') as src_file, open(dst_path, 'w') as dst_file:
+        for line in src_file:
+            dst_file.write(line)
+
+def main():
+    plan_path = sys.argv[1]
+    with open(plan_path, 'r') as f:
+        plan = json.load(f)
+    
+    data_lake_path = plan['data_lake_path']
+    files = plan['files']
+    cross_file_plan = plan['cross_file_plan']
+
+    execution_log = []
+    for file in files:
+        name = file['name']
+        relative_path = file['relative_path']
+        absolute_path = os.path.join(data_lake_path, relative_path)
+        
+        if not os.path.exists(absolute_path):
+            print(f"Skipping non-existent file: {name}")
+            continue
+        
+        df = pd.read_csv(absolute_path)
+        
+        for action in file.get('actions', []):
+            type = action['type']
+            column = action['column']
+            
+            if type == 'standardization':
+                reason = action['reason']
+                benefit = action['benefit']
+                
+                if column == 'country_code' and name in ['customers_legacy.csv', 'customers_raw.csv']:
+                    df[column] = df[column].str.lower()
+                    execution_log.append({
+                        "file": name,
+                        "action": f"Standardized {column} to lowercase",
+                        "reason": reason,
+                        "benefit": benefit
+                    })
+                elif column == 'Country' and name in ['customers_raw.csv']:
+                    df[column] = df[column].str.lower()
+                    execution_log.append({
+                        "file": name,
+                        "action": f"Standardized {column} to lowercase",
+                        "reason": reason,
+                        "benefit": benefit
+                    })
+                elif column == 'SignupDate' and name in ['customers_raw.csv']:
+                    df[column] = df[column].apply(standardize_date)
+                    execution_log.append({
+                        "file": name,
+                        "action": f"Standardized {column} to YYYY-MM-DD",
+                        "reason": reason,
+                        "benefit": benefit
+                    })
+                elif column == 'OrderDate' and name in ['orders_2024_messy.csv']:
+                    df[column] = df[column].apply(standardize_date)
+                    execution_log.append({
+                        "file": name,
+                        "action": f"Standardized {column} to YYYY-MM-DD",
+                        "reason": reason,
+                        "benefit": benefit
+                    })
+                elif column == 'category' and name in ['products.csv']:
+                    df[column] = df[column].str.lower()
+                    execution_log.append({
+                        "file": name,
+                        "action": f"Standardized {column} to lowercase",
+                        "reason": reason,
+                        "benefit": benefit
+                    })
+                elif column == 'active' and name in ['products.csv']:
+                    df[column] = df[column].apply(normalize_boolean)
+                    execution_log.append({
+                        "file": name,
+                        "action": f"Normalized {column} to boolean",
+                        "reason": reason,
+                        "benefit": benefit
+                    })
+            elif type == 'normalization':
+                reason = action['reason']
+                benefit = action['benefit']
+                
+                if column == 'Status' and name in ['orders_2024_messy.csv']:
+                    df[column] = df[column].str.lower()
+                    execution_log.append({
+                        "file": name,
+                        "action": f"Normalized {column} to lowercase",
+                        "reason": reason,
+                        "benefit": benefit
+                    })
+        
+        if not os.path.exists(os.path.join(data_lake_path, 'data_lake_clean')):
+            os.makedirs(os.path.join(data_lake_path, 'data_lake_clean'))
+        
+        cleaned_name = name.replace('.csv', '_cleaned.csv')
+        dst_path = os.path.join(data_lake_path, 'data_lake_clean', cleaned_name)
+        
+        if not df.empty:
+            df.to_csv(dst_path, index=False)
+            print(f"Saved cleaned file: {name}")
+        else:
+            copy_file(absolute_path, dst_path)
+            print(f"Skipped empty file: {name}")
+
+    for cross_action in cross_file_plan:
+        type = cross_action['type']
+        files_involved = cross_action['files_involved']
+        
+        if type == 'standardization':
+            reason = cross_action['reason']
+            benefit = cross_action['benefit']
+            
+            for file in files_involved:
+                name = file['name']
+                relative_path = file['relative_path']
+                absolute_path = os.path.join(data_lake_path, relative_path)
+                
+                if name == 'customers_legacy.csv':
+                    df = pd.read_csv(absolute_path)
+                    df['country_code'] = df['country_code'].str.lower()
+                    execution_log.append({
+                        "file": name,
+                        "action": f"Standardized country_code to lowercase",
+                        "reason": reason,
+                        "benefit": benefit
+                    })
+                elif name == 'customers_raw.csv':
+                    df = pd.read_csv(absolute_path)
+                    df['Country'] = df['Country'].str.lower()
+                    execution_log.append({
+                        "file": name,
+                        "action": f"Standardized Country to lowercase",
+                        "reason": reason,
+                        "benefit": benefit
+                    })
+                elif name == 'orders_2024_messy.csv':
+                    df = pd.read_csv(absolute_path)
+                    df['OrderDate'] = df['OrderDate'].apply(standardize_date)
+                    execution_log.append({
+                        "file": name,
+                        "action": f"Standardized OrderDate to YYYY-MM-DD",
+                        "reason": reason,
+                        "benefit": benefit
+                    })
+        
+    with open(os.path.join(data_lake_path, 'execution_log.json'), 'w') as f:
+        json.dump(execution_log, f)
+
+if __name__ == '__main__':
+    main()

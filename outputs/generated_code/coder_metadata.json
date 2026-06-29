@@ -1,0 +1,10 @@
+{
+  "source_plan_file": "cleaning_plan_llm.json",
+  "source_approval_file": "approval_decision.json",
+  "approval_status": "APPROVE_PLAN",
+  "generated_code_file": "generated_code.py",
+  "raw_llm_output_file": "generated_code_raw.txt",
+  "file_count_in_plan": 5,
+  "cross_file_action_count": 2,
+  "used_prior_code_review": true
+}

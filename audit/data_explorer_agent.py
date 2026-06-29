@@ -8,7 +8,6 @@ import requests
 PROJECT_ROOT = os.path.dirname(os.path.dirname(__file__))
 DATA_LAKE_PATH = os.path.join(PROJECT_ROOT, "data_lake")
 FILE_REPORTS_DIR = os.path.join(PROJECT_ROOT, "outputs","data_explorer_reports")
-FINAL_REPORT_PATH = os.path.join(PROJECT_ROOT, "audit_report_llm.json")
 
 LMSTUDIO_API_BASE = "http://127.0.0.1:1234/v1"
 LMSTUDIO_MODEL = "meta-llama-3.1-8b-instruct"
@@ -52,12 +51,16 @@ def sample_column_values(rows: List[Dict[str, Any]], column: str, max_samples: i
 def build_single_file_input(file_path: str) -> Dict[str, Any]:
     rows = sample_csv(file_path, max_rows=20)
     fname = os.path.basename(file_path)
+    abs_file_path = os.path.abspath(file_path)
+    rel_file_path = os.path.relpath(file_path, DATA_LAKE_PATH)
 
     if not rows:
         return {
             "data_lake_path": os.path.abspath(DATA_LAKE_PATH),
             "file": {
                 "name": fname,
+                "relative_path": rel_file_path,
+                "absolute_path": abs_file_path,
                 "columns": [],
                 "sample_rows_count": 0
             }
@@ -76,6 +79,8 @@ def build_single_file_input(file_path: str) -> Dict[str, Any]:
         "data_lake_path": os.path.abspath(DATA_LAKE_PATH),
         "file": {
             "name": fname,
+            "relative_path": rel_file_path,
+            "absolute_path": abs_file_path,
             "columns": columns_summary,
             "sample_rows_count": len(rows)
         }
@@ -159,6 +164,7 @@ def fix_json_with_llm(bad_json: str) -> str:
 
 def analyze_single_file(file_input: Dict[str, Any]) -> Dict[str, Any]:
     actual_file_name = file_input["file"]["name"]
+    actual_absolute_path = file_input["file"]["absolute_path"]
 
     system_prompt = (
     "You are a production-grade data quality analyst.\n\n"
@@ -183,6 +189,7 @@ def analyze_single_file(file_input: Dict[str, Any]) -> Dict[str, Any]:
     "Return ONLY valid JSON with this exact structure:\n"
     "{\n"
     "  \"name\": string,\n"
+    "  \"absolute_path\": string,\n"
     "  \"dataset_type\": string,\n"
     "  \"dataset_description\": string,\n"
     "  \"column_overview\": [\n"
@@ -231,8 +238,14 @@ def analyze_single_file(file_input: Dict[str, Any]) -> Dict[str, Any]:
             )
 
     parsed["name"] = actual_file_name
-    return parsed
-
+    parsed["absolute_path"] = file_input["file"]["absolute_path"]
+    return {
+        "file_metadata": {
+            "name": actual_file_name,
+            "absolute_path": actual_absolute_path,
+        },
+        "analysis": parsed
+    }
 
 def get_report_path_for_csv(file_path: str) -> str:
     csv_name = os.path.basename(file_path)
@@ -246,77 +259,11 @@ def load_existing_report(report_path: str) -> Dict[str, Any]:
 
 
 def save_single_file_report(report: Dict[str, Any]) -> str:
-    safe_name = report["name"].replace(".csv", "_report.json")
+    safe_name = report["file_metadata"]["name"].replace(".csv", "_report.json")
     output_path = os.path.join(FILE_REPORTS_DIR, safe_name)
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(report, f, indent=2)
     return output_path
-
-
-def build_final_summary_input(file_reports: List[Dict[str, Any]]) -> Dict[str, Any]:
-    return {
-        "data_lake_path": os.path.abspath(DATA_LAKE_PATH),
-        "file_reports": file_reports
-    }
-
-
-def summarize_all_files(summary_input: Dict[str, Any]) -> Dict[str, Any]:
-    system_prompt = (
-        "You are a lead data architect. "
-        "You are given audit reports for multiple CSV files in one data lake. "
-        "Your job is to create a final combined summary across all files.\n\n"
-        "Focus on:\n"
-        "- the biggest recurring quality issues across files\n"
-        "- cross-file schema overlaps or merge opportunities\n"
-        "- organization and standardization priorities\n\n"
-        "Return ONLY valid JSON with this exact structure:\n"
-        "{\n"
-        "  \"data_lake_path\": string,\n"
-        "  \"files\": [\n"
-        "    {\n"
-        "      \"name\": string,\n"
-        "      \"summary\": string,\n"
-        "      \"key_problems\": [string],\n"
-        "      \"recommendations\": [string]\n"
-        "    }\n"
-        "  ],\n"
-        "  \"cross_file_observations\": [string],\n"
-        "  \"overall_priorities\": [string]\n"
-        "}\n"
-        "Do not include markdown fences."
-    )
-
-    user_prompt = (
-        "Create the final combined audit summary from these per-file reports.\n\n"
-        f"{json.dumps(summary_input, indent=2)}"
-    )
-
-    content = call_llm(
-        [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
-        temperature=0.0,
-        timeout=120,
-    )
-
-    try:
-        return json.loads(content)
-    except json.JSONDecodeError:
-        fixed = fix_json_with_llm(content)
-        try:
-            return json.loads(fixed)
-        except json.JSONDecodeError as e:
-            raise RuntimeError(
-                f"Final summary JSON parse failed even after repair: {e}\n\n"
-                f"Original content:\n{content}\n\n"
-                f"Fixed content:\n{fixed}"
-            )
-
-
-def save_final_report(report: Dict[str, Any]) -> None:
-    with open(FINAL_REPORT_PATH, "w", encoding="utf-8") as f:
-        json.dump(report, f, indent=2)
 
 
 def main() -> None:

@@ -1,0 +1,21 @@
+product_id,product_name,category,price,active
+P-001,Smartphone X,electronics,699.99,yes
+P-002,Laptop Pro,electronics,1299.0,1
+P-003,Wireless Mouse,eletronics,25.5,true
+P-004,Gaming Keyboard,electronics,89.99,no
+P-005,Noise Cancelling Headphones,eletronics,199.99,false
+P-006,Office Chair,furniture,150.0,yes
+P-007,Standing Desk,furniture,399.0,0
+P-008,LED Monitor,electronics,249.5,true
+P-009,USB-C Hub,eletronics,45.0,1
+P-010,External SSD,electronics,129.99,no
+P-011,Coffee Maker,home appliances,59.99,yes
+P-012,Blender,home appliances,49.5,false
+P-013,Air Purifier,home appliances,199.0,true
+P-014,Smart Light Bulb,eletronics,19.99,1
+P-015,Robot Vacuum,home appliances,349.0,yes
+P-016,Tablet S,electronics,399.99,0
+P-017,Fitness Tracker,eletronics,99.0,true
+P-018,Smartwatch Z,electronics,299.0,false
+P-019,Bluetooth Speaker,eletronics,79.99,yes
+P-020,Portable Projector,electronics,249.99,true

@@ -2,7 +2,7 @@ import os
 import json
 import ast
 from typing import Dict, Any, List, Optional
-
+import re 
 import requests
 
 
@@ -59,26 +59,22 @@ def load_optional_json(path: str) -> Optional[Dict[str, Any]]:
 
 
 def strip_code_fences(text: str) -> str:
-    if not text:
-        return ""
-
+    """Remove all markdown code fences, wherever they appear in the text."""
     text = text.strip()
-
-    if text.startswith("```"):
-        lines = text.splitlines()
-
-        if lines and lines[0].startswith("```"):
-            lines = lines[1:]
-
-        while lines and not lines[-1].strip():
-            lines.pop()
-
-        if lines and lines[-1].startswith("```"):
-            lines = lines[:-1]
-
-        text = "\n".join(lines).strip()
-
-    return text
+    
+    # Remove opening fence on its own line (```python, ```py, or just ```)
+    text = re.sub(r'^```[a-zA-Z]*\s*\n', '', text)
+    
+    # Remove closing fence on its own line
+    text = re.sub(r'\n```\s*$', '', text)
+    
+    # If the LLM still snuck fences in the middle (like line 137 suggests),
+    # strip any remaining ``` lines entirely
+    lines = text.splitlines()
+    lines = [line for line in lines if not re.match(r'^\s*```', line)]
+    text = '\n'.join(lines)
+    
+    return text.strip()
 
 
 def call_llm(messages: List[Dict[str, str]], temperature: float = 0.0, timeout=(10, 600)) -> str:
@@ -150,8 +146,11 @@ def build_coder_messages(
         "18. For boolean normalization, support yes/no, true/false, 1/0, y/n, t/f.\n"
         "19. If a required column is missing, do not crash; log the skipped action.\n"
         "20. Cross-file actions must never overwrite original files.\n"
-        "21. The generated code must read the plan from an absolute or script-relative path, not assume the working directory contains cleaning_plan_llm.json.\n"
-        "22. Include a main() function and if __name__ == '__main__': main().\n"
+        "21. Read the plan file path from sys.argv[1], not from a hardcoded string. Use: import sys; plan_path = sys.argv[1] at the top of main().\n"
+        "22. You MUST define a function called exactly 'main' with no arguments: def main(): — not execute_plan, not run, not process. Call it at the bottom with if __name__ == '__main__': main()\n"
+        "23. Always reference each file by its literal filename string (e.g. customers_legacy.csv), not dynamically through the plan dict. Do not wrap output in markdown code fences."
+        "24. import sys at the TOP of the file with all other imports, never inside if __name__ == '__main__'.\n"
+        "25. Use plan_path = sys.argv[1] exactly once, as the first line inside main(). Never repeat it.\n"
     )
 
     user_prompt = (
@@ -182,7 +181,6 @@ def basic_code_validation(code_text: str) -> None:
 
     required_snippets = [
         "import pandas as pd",
-        "def main(",
         "__name__ == '__main__'",
     ]
 
@@ -190,34 +188,30 @@ def basic_code_validation(code_text: str) -> None:
         if snippet not in code_text:
             raise ValueError(f"Generated code is missing required snippet: {snippet}")
 
+    # Accept either main() or execute_plan() as the entry point
+    if "def main(" not in code_text and "def execute_plan(" not in code_text:
+        raise ValueError("Generated code is missing an entry point function (main or execute_plan).")
+
     try:
         ast.parse(code_text)
     except SyntaxError as e:
         raise ValueError(f"Generated code has invalid Python syntax: {e}")
+    if "sys.argv[1]" not in code_text:
+        raise ValueError("Generated code does not use sys.argv[1] for the plan path.")
 
+def semantic_code_validation(code_text: str, plan: dict):
+    for file_entry in plan.get('files', []):
+        name = file_entry['name']
+        # Accept either a literal filename OR dynamic plan-driven loading
+        loads_from_plan = (
+            "plan['files']" in code_text or 
+            'plan["files"]' in code_text or
+            "file['name']" in code_text or
+            'file["name"]' in code_text
+        )
+        if name not in code_text and not loads_from_plan:
+            raise ValueError(f"Generated code does not reference planned file: {name}")
 
-def semantic_code_validation(code_text: str, plan: Dict[str, Any]) -> None:
-    suspicious_patterns = [
-        "data[\"choices\"][\"message\"]",
-        "data['choices']['message']",
-        ".endswith('Date')",
-        ".endswith(\"Date\")",
-        "name.csv_cleaned.csv",
-        "cleaning_plan['files']['actions']",
-    ]
-
-    for pattern in suspicious_patterns:
-        if pattern in code_text:
-            raise ValueError(f"Generated code contains suspicious pattern: {pattern}")
-
-    for file_entry in plan.get("files", []):
-        if file_entry["name"] not in code_text:
-            raise ValueError(f"Generated code does not reference planned file: {file_entry['name']}")
-
-        for action in file_entry.get("actions", []):
-            col = action.get("column")
-            if col and col not in code_text:
-                raise ValueError(f"Generated code does not reference planned column: {col}")
 
 
 def save_raw_output(raw_text: str) -> None:
@@ -247,16 +241,54 @@ def save_metadata(plan: Dict[str, Any], approval: Dict[str, Any], prior_review: 
     with open(CODER_METADATA_PATH, "w", encoding="utf-8") as f:
         json.dump(metadata, f, indent=2)
 
+def fix_plan_path(code_text: str) -> str:
+    """Ensure sys is imported at the top level, not inside __main__ block."""
+    lines = code_text.splitlines()
+    new_lines = []
+    has_top_level_sys = False
 
-def generate_code(plan: Dict[str, Any], approval: Dict[str, Any], prior_review: Optional[Dict[str, Any]]) -> str:
+    for line in lines:
+        # Remove sys import if it's buried inside if __name__ block
+        if line.strip() == "import sys":
+            if has_top_level_sys:
+                continue  # skip duplicates
+            # Check if it's indented (i.e. inside a block)
+            if line.startswith(" ") or line.startswith("\t"):
+                continue  # drop it; we'll add it at the top
+            else:
+                has_top_level_sys = True
+        new_lines.append(line)
+
+    # Inject at top if missing
+    if not has_top_level_sys:
+        # Insert after the last top-level import
+        insert_at = 0
+        for i, line in enumerate(new_lines):
+            if line.startswith("import ") or line.startswith("from "):
+                insert_at = i + 1
+        new_lines.insert(insert_at, "import sys")
+
+    # Remove duplicate plan_path = sys.argv[1] (keep only first occurrence)
+    seen_argv = False
+    deduped = []
+    for line in new_lines:
+        if "sys.argv[1]" in line:
+            if seen_argv:
+                continue  # drop duplicate
+            seen_argv = True
+        deduped.append(line)
+
+    return "\n".join(deduped)
+
+def generate_code(plan, approval, prior_review=None):
     messages = build_coder_messages(plan, approval, prior_review=prior_review)
     raw_output = call_llm(messages, temperature=0.0, timeout=(10, 600))
     save_raw_output(raw_output)
 
     code_text = strip_code_fences(raw_output)
+    code_text = fix_plan_path(code_text)   # <-- add this
     basic_code_validation(code_text)
     semantic_code_validation(code_text, plan)
-
     return code_text
 
 

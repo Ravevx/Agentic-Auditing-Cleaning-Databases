@@ -171,6 +171,7 @@ def call_llm_for_plan(planner_input: Dict[str, Any]) -> Dict[str, Any]:
         "13. Cross-file plans should group only files with directly related schemas or entities.\n"
         "14. Keep benefits short and outcome-focused.\n"
         "15. Do NOT include explanations outside JSON.\n"
+        "16. Return only JSON. No markdown fences. No prose.\n"
     )
 
     user_prompt = (
@@ -197,14 +198,16 @@ def call_llm_for_plan(planner_input: Dict[str, Any]) -> Dict[str, Any]:
         f.write(content)
 
     # Try to extract JSON only once; no repair call
-    try:
-        json_text = extract_json_block(content)
-        return json.loads(json_text)
-    except Exception as e:
-        raise RuntimeError(
-            f"Planner returned non-JSON output: {e}\n"
-            f"Raw output saved to {raw_path}"
-        )
+        try:
+            json_text = extract_json_block(content)
+            plan = json.loads(json_text)
+            plan = inject_file_paths(plan, planner_input["file_reports"])
+            return plan
+        except Exception as e:
+            raise RuntimeError(
+                f"Planner returned non-JSON output: {e}\n"
+                f"Raw output saved to {raw_path}"
+            )
 
     return plan
 
@@ -213,6 +216,43 @@ def save_cleaning_plan(plan: Dict[str, Any], output_path: str) -> None:
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(plan, f, indent=2)
 
+def build_file_metadata_lookup(file_reports: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+    lookup = {}
+    for report in file_reports:
+        meta = report.get("file_metadata", {})
+        name = meta.get("name")
+        if name:
+            lookup[name] = meta
+    return lookup
+
+def inject_file_paths(plan: Dict[str, Any], file_reports: List[Dict[str, Any]]) -> Dict[str, Any]:
+    metadata_lookup = build_file_metadata_lookup(file_reports)
+
+    for file_entry in plan.get("files", []):
+        meta = metadata_lookup.get(file_entry.get("name"))
+        if meta:
+            file_entry["relative_path"] = meta.get("relative_path")
+            file_entry["absolute_path"] = meta.get("absolute_path")
+
+    for cross_task in plan.get("cross_file_plan", []):
+        fixed_files = []
+        for item in cross_task.get("files_involved", []):
+            if isinstance(item, str):
+                meta = metadata_lookup.get(item, {})
+                fixed_files.append({
+                    "name": item,
+                    "relative_path": meta.get("relative_path"),
+                    "absolute_path": meta.get("absolute_path")
+                })
+            elif isinstance(item, dict):
+                name = item.get("name")
+                meta = metadata_lookup.get(name, {})
+                item["relative_path"] = meta.get("relative_path")
+                item["absolute_path"] = meta.get("absolute_path")
+                fixed_files.append(item)
+        cross_task["files_involved"] = fixed_files
+
+    return plan
 
 if __name__ == "__main__":
     file_reports = load_file_reports()

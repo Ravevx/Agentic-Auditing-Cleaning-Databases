@@ -10,9 +10,7 @@
           "reason": "Inconsistent country codes (uppercase vs lowercase)",
           "benefit": "Ensure consistent data format for geographic location"
         }
-      ],
-      "relative_path": "customers_legacy.csv",
-      "absolute_path": "J:\\Agent My Learning\\datacleaningagent\\data_lake\\customers_legacy.csv"
+      ]
     },
     {
       "name": "customers_raw.csv",
@@ -29,15 +27,11 @@
           "reason": "Inconsistent date formats for signup dates",
           "benefit": "Enable efficient date-based analysis and sorting"
         }
-      ],
-      "relative_path": "customers_raw.csv",
-      "absolute_path": "J:\\Agent My Learning\\datacleaningagent\\data_lake\\customers_raw.csv"
+      ]
     },
     {
       "name": "orders_2023.csv",
-      "actions": [],
-      "relative_path": "orders_2023.csv",
-      "absolute_path": "J:\\Agent My Learning\\datacleaningagent\\data_lake\\orders_2023.csv"
+      "actions": []
     },
     {
       "name": "orders_2024_messy.csv",
@@ -54,9 +48,7 @@
           "reason": "Inconsistent capitalization in the Status column",
           "benefit": "Facilitate case-insensitive data analysis and filtering"
         }
-      ],
-      "relative_path": "orders_2024_messy.csv",
-      "absolute_path": "J:\\Agent My Learning\\datacleaningagent\\data_lake\\orders_2024_messy.csv"
+      ]
     },
     {
       "name": "products.csv",
@@ -73,38 +65,19 @@
           "reason": "Inconsistent representation of boolean values in active column",
           "benefit": "Facilitate efficient data analysis and processing"
         }
-      ],
-      "relative_path": "products.csv",
-      "absolute_path": "J:\\Agent My Learning\\datacleaningagent\\data_lake\\products.csv"
+      ]
     }
   ],
   "cross_file_plan": [
     {
       "type": "standardization",
-      "files_involved": [
-        {
-          "name": "customers_legacy.csv",
-          "relative_path": "customers_legacy.csv",
-          "absolute_path": "J:\\Agent My Learning\\datacleaningagent\\data_lake\\customers_legacy.csv"
-        },
-        {
-          "name": "customers_raw.csv",
-          "relative_path": "customers_raw.csv",
-          "absolute_path": "J:\\Agent My Learning\\datacleaningagent\\data_lake\\customers_raw.csv"
-        }
-      ],
+      "files_involved": ["customers_legacy.csv", "customers_raw.csv"],
       "reason": "Inconsistent country codes and names across customer datasets",
       "benefit": "Ensure consistent geographic location data format for analysis"
     },
     {
       "type": "standardization",
-      "files_involved": [
-        {
-          "name": "orders_2024_messy.csv",
-          "relative_path": "orders_2024_messy.csv",
-          "absolute_path": "J:\\Agent My Learning\\datacleaningagent\\data_lake\\orders_2024_messy.csv"
-        }
-      ],
+      "files_involved": ["orders_2024_messy.csv"],
       "reason": "Inconsistent date formats in the OrderDate column",
       "benefit": "Enable efficient date-based analysis and sorting across orders dataset"
     }

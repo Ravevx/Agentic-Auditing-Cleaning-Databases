@@ -1,0 +1,8 @@
+{
+  "command": "python J:\\Agent My Learning\\datacleaningagent\\outputs\\generated_code\\generated_code.py J:\\Agent My Learning\\datacleaningagent\\outputs\\planner_report\\cleaning_plan_llm.json",
+  "return_code": 0,
+  "stdout": "Saved cleaned file: customers_legacy.csv\nSaved cleaned file: customers_raw.csv\nSaved cleaned file: orders_2023.csv\nSaved cleaned file: orders_2024_messy.csv\nSaved cleaned file: products.csv\n",
+  "stderr": "",
+  "duration_seconds": 1.122,
+  "status": "success"
+}
