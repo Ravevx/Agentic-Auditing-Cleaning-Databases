@@ -193,20 +193,6 @@ datacleaningagent/
 - For each file: sample rows, infer column names and types, compute basic stats (null counts, distinct values, value distributions).
 - Identify quality issues: missing data, inconsistent formats, potential duplicates, conflicting schemas.
 
-**Output:** `audit_report.json`
-```json
-{
-  "files": [
-    {
-      "name": "customers_raw.csv",
-      "rows": 12000,
-      "columns": ["id", "name", "country", "signup_date"],
-      "issues": ["country labels inconsistent", "signup_date format varies"]
-    }
-  ]
-}
-```
-
 ---
 
 ### 2. Planner Agent
@@ -219,25 +205,6 @@ datacleaningagent/
 - For each file: propose cleaning actions (drop columns, type conversions, normalization, deduplication).
 - Across the whole lake: suggest schema alignment (which files can be joined or merged).
 - Explain what to change, why, and how it benefits downstream analytics or AI workflows.
-
-**Output:** `cleaning_plan.json`
-```json
-{
-  "files": [
-    {
-      "name": "customers_raw.csv",
-      "actions": [
-        {
-          "type": "standardize_categories",
-          "column": "country",
-          "reason": "multiple spellings of same country",
-          "benefit": "simpler group-by and analytics"
-        }
-      ]
-    }
-  ]
-}
-```
 
 ---
 
